@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pizza Runner - The Ultimate Pizza Adventure!</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <h1>🍕 PIZZA RUNNER 🍕</h1>
+            <div class="stats">
+                <div class="stat-item">Score: <span id="score">0</span></div>
+                <div class="stat-item">High Score: <span id="highScore">0</span></div>
+                <div class="stat-item">Lives: <span id="lives">3</span></div>
+            </div>
+        </div>
+
+        <div class="controls-info">
+            <span><strong>SPACE</strong>: Jump</span>
+            <span><strong>SHIFT</strong>: Charge</span>
+            <span><strong>F</strong>: Shoot Pepperoni</span>
+        </div>
+
+        <canvas id="gameCanvas" width="800" height="400"></canvas>
+
+        <div id="gameOver" class="game-over hidden">
+            <h2>Game Over!</h2>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <button id="restartBtn">Play Again</button>
+        </div>
+
+        <div class="enemy-info">
+            <h3>Enemy Guide:</h3>
+            <div class="enemy-guide">
+                <div class="guide-item">🐢 <strong>Turtles</strong>: Use CHARGE to defeat</div>
+                <div class="guide-item">👦 <strong>Teenagers</strong>: JUMP on them!</div>
+                <div class="guide-item">👾 <strong>Mutants</strong>: Avoid or shoot</div>
+                <div class="guide-item">🥷 <strong>Ninjas</strong>: SHOOT with pepperoni!</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
