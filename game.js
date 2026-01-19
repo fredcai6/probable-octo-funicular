@@ -289,16 +289,22 @@ class Mutant extends Enemy {
     constructor() {
         super('mutant');
         this.color = '#9370DB';
-        this.baseY = canvas.height - 80;
-        this.amplitude = 60;
-        this.frequency = 0.05;
+        this.baseY = canvas.height - 120; // Move up a bit
+        this.amplitude = 40; // Reduced from 60
+        this.frequency = 0.08; // Slightly increased base frequency
         this.time = 0;
     }
 
     update() {
         super.update();
         this.time += this.frequency;
-        this.y = this.baseY + Math.sin(this.time * 10) * this.amplitude;
+        // Slower sine wave (reduced from 10 to 3)
+        this.y = this.baseY + Math.sin(this.time * 3) * this.amplitude;
+
+        // Keep within bounds
+        const minY = 50;
+        const maxY = canvas.height - 80;
+        this.y = Math.max(minY, Math.min(maxY, this.y));
     }
 
     handleCollision(player) {
@@ -671,6 +677,74 @@ document.addEventListener('keyup', (e) => {
     if (e.code === 'KeyF') {
         keys.f = false;
     }
+});
+
+// Mobile Touch Controls
+let touchButtons = {
+    jump: null,
+    charge: null,
+    shoot: null
+};
+
+// Helper function to handle touch button press
+function setupTouchButton(buttonId, onPress, onRelease) {
+    const button = document.getElementById(buttonId);
+    if (!button) return;
+
+    touchButtons[buttonId] = button;
+
+    // Touch events
+    button.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (game.running) onPress();
+    });
+
+    button.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        if (game.running && onRelease) onRelease();
+    });
+
+    // Mouse events for testing on desktop
+    button.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        if (game.running) onPress();
+    });
+
+    button.addEventListener('mouseup', (e) => {
+        e.preventDefault();
+        if (game.running && onRelease) onRelease();
+    });
+}
+
+// Setup touch controls after DOM loads
+window.addEventListener('DOMContentLoaded', () => {
+    setupTouchButton('jumpBtn', () => {
+        if (!keys.space) {
+            keys.space = true;
+            player.jump();
+        }
+    }, () => {
+        keys.space = false;
+    });
+
+    setupTouchButton('chargeBtn', () => {
+        if (!keys.shift) {
+            keys.shift = true;
+            player.charge();
+        }
+    }, () => {
+        keys.shift = false;
+        player.stopCharge();
+    });
+
+    setupTouchButton('shootBtn', () => {
+        if (!keys.f) {
+            keys.f = true;
+            player.shoot();
+        }
+    }, () => {
+        keys.f = false;
+    });
 });
 
 // Restart Button
