@@ -8,14 +8,17 @@ const game = {
     score: 0,
     highScore: parseInt(localStorage.getItem('pizzaRunnerHighScore')) || 0,
     lives: 3,
-    gameSpeed: 2,
     frameCount: 0,
+    cameraX: 0,
+    worldWidth: 5000, // Extended world
     spawnTimer: 0,
-    spawnInterval: 120
+    spawnInterval: 180
 };
 
 // Input State
 const keys = {
+    left: false,
+    right: false,
     space: false,
     shift: false,
     f: false
@@ -25,18 +28,20 @@ const keys = {
 class Pizza {
     constructor() {
         this.x = 100;
-        this.y = canvas.height - 80;
+        this.y = canvas.height - 120;
         this.width = 40;
         this.height = 40;
+        this.velocityX = 0;
         this.velocityY = 0;
         this.gravity = 0.6;
-        this.jumpPower = -12;
-        this.grounded = true;
+        this.jumpPower = -13;
+        this.moveSpeed = 5;
+        this.grounded = false;
         this.charging = false;
-        this.chargeSpeed = 8;
-        this.normalSpeed = 0;
         this.invulnerable = false;
         this.invulnerableTimer = 0;
+        this.pepperonis = 10; // Starting ammo
+        this.maxPepperonis = 20;
     }
 
     jump() {
@@ -55,16 +60,47 @@ class Pizza {
     }
 
     shoot() {
-        projectiles.push(new Pepperoni(this.x + this.width, this.y + this.height / 2));
+        if (this.pepperonis > 0) {
+            projectiles.push(new Pepperoni(this.x + this.width, this.y + this.height / 2));
+            this.pepperonis--;
+            updatePepperonis();
+        }
+    }
+
+    addPepperonis(amount) {
+        this.pepperonis = Math.min(this.pepperonis + amount, this.maxPepperonis);
+        updatePepperonis();
     }
 
     update() {
-        // Apply gravity
-        if (!this.grounded) {
-            this.velocityY += this.gravity;
+        // Horizontal movement
+        this.velocityX = 0;
+        if (keys.left) {
+            this.velocityX = -this.moveSpeed;
+        }
+        if (keys.right) {
+            this.velocityX = this.moveSpeed;
         }
 
+        // Apply charge speed boost
+        if (this.charging && keys.right) {
+            this.velocityX = this.moveSpeed * 1.8;
+        }
+
+        this.x += this.velocityX;
+
+        // Keep player in world bounds
+        if (this.x < 0) this.x = 0;
+        if (this.x > game.worldWidth - this.width) {
+            this.x = game.worldWidth - this.width;
+        }
+
+        // Apply gravity
+        this.velocityY += this.gravity;
         this.y += this.velocityY;
+
+        // Reset grounded state
+        this.grounded = false;
 
         // Ground collision
         const groundY = canvas.height - 80;
@@ -74,7 +110,20 @@ class Pizza {
             this.grounded = true;
         }
 
-        // Keep player in bounds
+        // Platform collision
+        platforms.forEach(platform => {
+            if (this.velocityY >= 0 && // Falling down
+                this.x + this.width > platform.x &&
+                this.x < platform.x + platform.width &&
+                this.y + this.height >= platform.y &&
+                this.y + this.height <= platform.y + 15) {
+                this.y = platform.y - this.height;
+                this.velocityY = 0;
+                this.grounded = true;
+            }
+        });
+
+        // Keep player in vertical bounds
         if (this.y < 0) {
             this.y = 0;
             this.velocityY = 0;
@@ -87,13 +136,26 @@ class Pizza {
                 this.invulnerable = false;
             }
         }
+
+        // Update camera to follow player
+        const cameraDeadZone = canvas.width / 3;
+        const playerScreenX = this.x - game.cameraX;
+
+        if (playerScreenX > canvas.width - cameraDeadZone) {
+            game.cameraX = this.x - (canvas.width - cameraDeadZone);
+        } else if (playerScreenX < cameraDeadZone) {
+            game.cameraX = this.x - cameraDeadZone;
+        }
+
+        // Keep camera in bounds
+        game.cameraX = Math.max(0, Math.min(game.cameraX, game.worldWidth - canvas.width));
     }
 
     takeDamage() {
         if (!this.invulnerable) {
             game.lives--;
             this.invulnerable = true;
-            this.invulnerableTimer = 120; // 2 seconds at 60fps
+            this.invulnerableTimer = 120;
             updateLives();
 
             if (game.lives <= 0) {
@@ -104,6 +166,7 @@ class Pizza {
 
     draw() {
         ctx.save();
+        ctx.translate(-game.cameraX, 0);
 
         // Flash when invulnerable
         if (this.invulnerable && Math.floor(this.invulnerableTimer / 10) % 2 === 0) {
@@ -138,6 +201,40 @@ class Pizza {
     }
 }
 
+// Platform Class
+class Platform {
+    constructor(x, y, width) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = 20;
+    }
+
+    draw() {
+        ctx.save();
+        ctx.translate(-game.cameraX, 0);
+
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+
+        // Grass on top
+        ctx.fillStyle = '#228B22';
+        ctx.fillRect(this.x, this.y - 5, this.width, 5);
+
+        // Platform texture
+        ctx.strokeStyle = '#654321';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < this.width; i += 40) {
+            ctx.beginPath();
+            ctx.moveTo(this.x + i, this.y);
+            ctx.lineTo(this.x + i, this.y + this.height);
+            ctx.stroke();
+        }
+
+        ctx.restore();
+    }
+}
+
 // Pepperoni Projectile Class
 class Pepperoni {
     constructor(x, y) {
@@ -152,12 +249,15 @@ class Pepperoni {
     update() {
         this.x += this.speed;
 
-        if (this.x > canvas.width) {
+        if (this.x > game.worldWidth) {
             this.active = false;
         }
     }
 
     draw() {
+        ctx.save();
+        ctx.translate(-game.cameraX, 0);
+
         ctx.fillStyle = '#8B0000';
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.width / 2, 0, Math.PI * 2);
@@ -168,27 +268,113 @@ class Pepperoni {
         ctx.arc(this.x - 2, this.y - 2, 2, 0, Math.PI * 2);
         ctx.arc(this.x + 2, this.y + 2, 2, 0, Math.PI * 2);
         ctx.fill();
+
+        ctx.restore();
+    }
+}
+
+// Power-up Class
+class PowerUp {
+    constructor(x, y, type = 'pepperoni') {
+        this.x = x;
+        this.y = y;
+        this.width = 25;
+        this.height = 25;
+        this.type = type;
+        this.active = true;
+        this.bobOffset = Math.random() * Math.PI * 2;
+    }
+
+    update() {
+        // Bob up and down
+        this.bobOffset += 0.1;
+
+        // Check collision with player
+        if (this.checkCollision(player)) {
+            this.collect();
+        }
+
+        // Remove if too far behind camera
+        if (this.x < game.cameraX - 200) {
+            this.active = false;
+        }
+    }
+
+    checkCollision(player) {
+        return (
+            player.x < this.x + this.width &&
+            player.x + player.width > this.x &&
+            player.y < this.y + this.height &&
+            player.y + player.height > this.y
+        );
+    }
+
+    collect() {
+        this.active = false;
+        if (this.type === 'pepperoni') {
+            player.addPepperonis(5);
+            game.score += 25;
+            updateScore();
+        }
+    }
+
+    draw() {
+        ctx.save();
+        ctx.translate(-game.cameraX, 0);
+
+        const bobY = this.y + Math.sin(this.bobOffset) * 5;
+
+        if (this.type === 'pepperoni') {
+            // Pepperoni box
+            ctx.fillStyle = '#FF6347';
+            ctx.fillRect(this.x, bobY, this.width, this.height);
+
+            ctx.strokeStyle = '#8B0000';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(this.x, bobY, this.width, this.height);
+
+            // Pepperoni icon
+            ctx.fillStyle = '#8B0000';
+            ctx.beginPath();
+            ctx.arc(this.x + this.width / 2, bobY + this.height / 2, 8, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#FF6347';
+            ctx.beginPath();
+            ctx.arc(this.x + this.width / 2 - 2, bobY + this.height / 2 - 2, 2, 0, Math.PI * 2);
+            ctx.arc(this.x + this.width / 2 + 2, bobY + this.height / 2 + 2, 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        ctx.restore();
     }
 }
 
 // Base Enemy Class
 class Enemy {
-    constructor(type) {
+    constructor(type, x, y) {
         this.type = type;
         this.width = 35;
         this.height = 35;
-        this.x = canvas.width;
-        this.y = canvas.height - 80;
-        this.speed = game.gameSpeed;
+        this.x = x;
+        this.y = y;
+        this.speed = 1.5;
         this.active = true;
+        this.direction = -1; // -1 for left, 1 for right
     }
 
     update() {
-        this.x -= this.speed;
+        this.x += this.speed * this.direction;
 
-        if (this.x + this.width < 0) {
+        // Remove if too far off screen
+        if (this.x < game.cameraX - 200 || this.x > game.cameraX + canvas.width + 200) {
             this.active = false;
-            game.score += 10;
+        }
+
+        // Award points if enemy goes off left side of world
+        if (this.x < -this.width && this.active) {
+            this.active = false;
+            game.score += 5;
             updateScore();
         }
     }
@@ -201,13 +387,26 @@ class Enemy {
             player.y + player.height > this.y
         );
     }
+
+    checkEdge() {
+        // Turn around at world edges
+        if (this.x <= 0 || this.x >= game.worldWidth - this.width) {
+            this.direction *= -1;
+        }
+    }
 }
 
 // Turtle Enemy (defeated by charging)
 class Turtle extends Enemy {
-    constructor() {
-        super('turtle');
+    constructor(x) {
+        const y = canvas.height - 115; // Ground level
+        super('turtle', x, y);
         this.color = '#228B22';
+    }
+
+    update() {
+        super.update();
+        this.checkEdge();
     }
 
     handleCollision(player) {
@@ -221,6 +420,9 @@ class Turtle extends Enemy {
     }
 
     draw() {
+        ctx.save();
+        ctx.translate(-game.cameraX, 0);
+
         // Shell
         ctx.fillStyle = this.color;
         ctx.beginPath();
@@ -230,7 +432,8 @@ class Turtle extends Enemy {
         // Head
         ctx.fillStyle = '#90EE90';
         ctx.beginPath();
-        ctx.arc(this.x + this.width - 10, this.y + this.height / 2, 8, 0, Math.PI * 2);
+        const headX = this.direction > 0 ? this.x + this.width - 10 : this.x + 10;
+        ctx.arc(headX, this.y + this.height / 2, 8, 0, Math.PI * 2);
         ctx.fill();
 
         // Shell pattern
@@ -239,15 +442,31 @@ class Turtle extends Enemy {
         ctx.beginPath();
         ctx.arc(this.x + this.width / 2, this.y + this.height / 2, this.width / 4, 0, Math.PI * 2);
         ctx.stroke();
+
+        ctx.restore();
     }
 }
 
 // Teenager Enemy (defeated by jumping on)
 class Teenager extends Enemy {
-    constructor() {
-        super('teenager');
+    constructor(x, y = null) {
+        if (y === null) {
+            y = canvas.height - 115; // Default to ground
+        }
+        super('teenager', x, y);
         this.color = '#FF69B4';
-        this.jumpable = true;
+        this.baseY = y;
+        this.patrolStart = x - 100;
+        this.patrolEnd = x + 100;
+    }
+
+    update() {
+        super.update();
+
+        // Patrol between points
+        if (this.x <= this.patrolStart || this.x >= this.patrolEnd) {
+            this.direction *= -1;
+        }
     }
 
     handleCollision(player) {
@@ -263,6 +482,9 @@ class Teenager extends Enemy {
     }
 
     draw() {
+        ctx.save();
+        ctx.translate(-game.cameraX, 0);
+
         // Body
         ctx.fillStyle = this.color;
         ctx.fillRect(this.x + 10, this.y + 15, this.width - 20, this.height - 15);
@@ -281,30 +503,43 @@ class Teenager extends Enemy {
         ctx.fillStyle = '#000';
         ctx.fillRect(this.x + this.width / 2 - 4, this.y + 8, 2, 2);
         ctx.fillRect(this.x + this.width / 2 + 2, this.y + 8, 2, 2);
+
+        ctx.restore();
     }
 }
 
 // Mutant Enemy (erratic movement, avoid or shoot)
 class Mutant extends Enemy {
-    constructor() {
-        super('mutant');
+    constructor(x, y = null) {
+        if (y === null) {
+            y = canvas.height - 120;
+        }
+        super('mutant', x, y);
         this.color = '#9370DB';
-        this.baseY = canvas.height - 120; // Move up a bit
-        this.amplitude = 40; // Reduced from 60
-        this.frequency = 0.08; // Slightly increased base frequency
+        this.baseY = y;
+        this.amplitude = 40;
+        this.frequency = 0.08;
         this.time = 0;
+        this.patrolStart = x - 150;
+        this.patrolEnd = x + 150;
     }
 
     update() {
         super.update();
         this.time += this.frequency;
-        // Slower sine wave (reduced from 10 to 3)
+
+        // Floating motion
         this.y = this.baseY + Math.sin(this.time * 3) * this.amplitude;
 
         // Keep within bounds
         const minY = 50;
         const maxY = canvas.height - 80;
         this.y = Math.max(minY, Math.min(maxY, this.y));
+
+        // Patrol
+        if (this.x <= this.patrolStart || this.x >= this.patrolEnd) {
+            this.direction *= -1;
+        }
     }
 
     handleCollision(player) {
@@ -312,6 +547,9 @@ class Mutant extends Enemy {
     }
 
     draw() {
+        ctx.save();
+        ctx.translate(-game.cameraX, 0);
+
         // Body (blob-like)
         ctx.fillStyle = this.color;
         ctx.beginPath();
@@ -341,25 +579,38 @@ class Mutant extends Enemy {
             ctx.lineTo(this.x + 20 + i * 10, this.y);
             ctx.fill();
         }
+
+        ctx.restore();
     }
 }
 
 // Ninja Enemy (must be shot with pepperoni)
 class Ninja extends Enemy {
-    constructor() {
-        super('ninja');
+    constructor(x, y) {
+        super('ninja', x, y);
         this.color = '#000';
-        this.y = canvas.height - 120; // Slightly elevated
-        this.shootTimer = Math.random() * 60 + 60;
+        this.shootTimer = Math.random() * 120 + 60;
+        this.patrolStart = x - 80;
+        this.patrolEnd = x + 80;
     }
 
     update() {
         super.update();
 
+        // Patrol on platform
+        if (this.x <= this.patrolStart || this.x >= this.patrolEnd) {
+            this.direction *= -1;
+        }
+
         this.shootTimer--;
-        if (this.shootTimer <= 0 && this.x < canvas.width - 100 && this.x > 100) {
-            enemyProjectiles.push(new Shuriken(this.x, this.y + this.height / 2));
-            this.shootTimer = Math.random() * 120 + 90;
+        if (this.shootTimer <= 0) {
+            const distToPlayer = Math.abs(this.x - player.x);
+            if (distToPlayer < 400) {
+                enemyProjectiles.push(new Shuriken(this.x, this.y + this.height / 2, this.direction));
+                this.shootTimer = Math.random() * 180 + 120;
+            } else {
+                this.shootTimer = 60;
+            }
         }
     }
 
@@ -368,6 +619,9 @@ class Ninja extends Enemy {
     }
 
     draw() {
+        ctx.save();
+        ctx.translate(-game.cameraX, 0);
+
         // Body
         ctx.fillStyle = this.color;
         ctx.fillRect(this.x + 10, this.y + 15, this.width - 20, this.height - 15);
@@ -386,26 +640,29 @@ class Ninja extends Enemy {
         // Red headband
         ctx.fillStyle = '#FF0000';
         ctx.fillRect(this.x + this.width / 2 - 10, this.y + 5, 20, 3);
+
+        ctx.restore();
     }
 }
 
 // Shuriken Projectile
 class Shuriken {
-    constructor(x, y) {
+    constructor(x, y, direction) {
         this.x = x;
         this.y = y;
         this.width = 10;
         this.height = 10;
-        this.speed = 5;
+        this.speed = 4;
+        this.direction = direction;
         this.active = true;
         this.rotation = 0;
     }
 
     update() {
-        this.x -= this.speed;
+        this.x += this.speed * this.direction;
         this.rotation += 0.2;
 
-        if (this.x < -this.width) {
+        if (this.x < game.cameraX - 100 || this.x > game.cameraX + canvas.width + 100) {
             this.active = false;
         }
     }
@@ -421,6 +678,7 @@ class Shuriken {
 
     draw() {
         ctx.save();
+        ctx.translate(-game.cameraX, 0);
         ctx.translate(this.x, this.y);
         ctx.rotate(this.rotation);
 
@@ -439,36 +697,83 @@ class Shuriken {
 
 // Game Arrays
 const player = new Pizza();
+const platforms = [];
 const enemies = [];
 const projectiles = [];
 const enemyProjectiles = [];
+const powerUps = [];
 
-// Spawn Enemies
-function spawnEnemy() {
-    const rand = Math.random();
-    let enemy;
+// Generate level
+function generateLevel() {
+    platforms.length = 0;
+    enemies.length = 0;
+    powerUps.length = 0;
 
-    if (rand < 0.25) {
-        enemy = new Turtle();
-    } else if (rand < 0.5) {
-        enemy = new Teenager();
-    } else if (rand < 0.75) {
-        enemy = new Mutant();
-    } else {
-        enemy = new Ninja();
+    // Create platforms
+    let x = 400;
+    for (let i = 0; i < 20; i++) {
+        const y = Math.random() * 200 + 100;
+        const width = Math.random() * 150 + 100;
+        platforms.push(new Platform(x, y, width));
+
+        // Spawn enemies on platforms
+        if (Math.random() < 0.5) {
+            // Ninja on platform
+            enemies.push(new Ninja(x + width / 2, y - 35));
+        }
+
+        if (Math.random() < 0.4) {
+            // Teenager on platform
+            enemies.push(new Teenager(x + width / 2, y - 35));
+        }
+
+        if (Math.random() < 0.3) {
+            // Mutant near platform
+            enemies.push(new Mutant(x + width / 2, y - 60));
+        }
+
+        // Power-ups on platforms
+        if (Math.random() < 0.4) {
+            powerUps.push(new PowerUp(x + width / 2 - 12, y - 40, 'pepperoni'));
+        }
+
+        x += Math.random() * 250 + 200;
     }
 
-    enemies.push(enemy);
+    // Ground enemies (turtles and some teenagers/mutants)
+    for (let i = 0; i < 30; i++) {
+        const x = Math.random() * game.worldWidth;
+        const rand = Math.random();
+
+        if (rand < 0.4) {
+            enemies.push(new Turtle(x));
+        } else if (rand < 0.7) {
+            enemies.push(new Teenager(x));
+        } else {
+            enemies.push(new Mutant(x));
+        }
+    }
+
+    // Ground power-ups
+    for (let i = 0; i < 15; i++) {
+        const x = Math.random() * game.worldWidth;
+        powerUps.push(new PowerUp(x, canvas.height - 120, 'pepperoni'));
+    }
 }
 
 // Draw Ground
 function drawGround() {
+    ctx.save();
+    ctx.translate(-game.cameraX, 0);
+
     ctx.fillStyle = '#8B4513';
-    ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
+    ctx.fillRect(0, canvas.height - 40, game.worldWidth, 40);
 
     // Grass
     ctx.fillStyle = '#228B22';
-    ctx.fillRect(0, canvas.height - 45, canvas.width, 5);
+    ctx.fillRect(0, canvas.height - 45, game.worldWidth, 5);
+
+    ctx.restore();
 }
 
 // Draw Background
@@ -480,15 +785,15 @@ function drawBackground() {
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height - 40);
 
-    // Clouds
+    // Clouds (parallax)
     ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    const cloudOffset = (game.frameCount * 0.2) % canvas.width;
-    for (let i = 0; i < 3; i++) {
-        const x = (i * 300 - cloudOffset) % canvas.width;
+    const cloudOffset = game.cameraX * 0.3;
+    for (let i = 0; i < 10; i++) {
+        const x = ((i * 400 - cloudOffset) % (game.worldWidth + 400));
         ctx.beginPath();
-        ctx.arc(x, 50 + i * 40, 20, 0, Math.PI * 2);
-        ctx.arc(x + 20, 50 + i * 40, 25, 0, Math.PI * 2);
-        ctx.arc(x + 40, 50 + i * 40, 20, 0, Math.PI * 2);
+        ctx.arc(x, 50 + (i % 3) * 40, 20, 0, Math.PI * 2);
+        ctx.arc(x + 20, 50 + (i % 3) * 40, 25, 0, Math.PI * 2);
+        ctx.arc(x + 40, 50 + (i % 3) * 40, 20, 0, Math.PI * 2);
         ctx.fill();
     }
 }
@@ -509,6 +814,11 @@ function updateLives() {
     document.getElementById('lives').textContent = game.lives;
 }
 
+// Update Pepperonis Display
+function updatePepperonis() {
+    document.getElementById('pepperonis').textContent = player.pepperonis;
+}
+
 // Game Over
 function gameOver() {
     game.running = false;
@@ -520,23 +830,28 @@ function gameOver() {
 function resetGame() {
     game.score = 0;
     game.lives = 3;
-    game.gameSpeed = 2;
     game.frameCount = 0;
-    game.spawnTimer = 0;
+    game.cameraX = 0;
 
     enemies.length = 0;
     projectiles.length = 0;
     enemyProjectiles.length = 0;
+    powerUps.length = 0;
 
     player.x = 100;
-    player.y = canvas.height - 80;
+    player.y = canvas.height - 120;
+    player.velocityX = 0;
     player.velocityY = 0;
-    player.grounded = true;
+    player.grounded = false;
     player.charging = false;
     player.invulnerable = false;
+    player.pepperonis = 10;
+
+    generateLevel();
 
     updateScore();
     updateLives();
+    updatePepperonis();
 
     document.getElementById('gameOver').classList.add('hidden');
 }
@@ -552,29 +867,27 @@ function gameLoop() {
     drawBackground();
     drawGround();
 
+    // Draw platforms
+    platforms.forEach(platform => platform.draw());
+
+    // Update and draw power-ups
+    for (let i = powerUps.length - 1; i >= 0; i--) {
+        const powerUp = powerUps[i];
+        powerUp.update();
+        powerUp.draw();
+
+        if (!powerUp.active) {
+            powerUps.splice(i, 1);
+        }
+    }
+
     // Update and draw player
     player.update();
     player.draw();
 
-    // Spawn enemies
-    game.spawnTimer++;
-    if (game.spawnTimer >= game.spawnInterval) {
-        spawnEnemy();
-        game.spawnTimer = 0;
-
-        // Gradually increase difficulty
-        if (game.spawnInterval > 60) {
-            game.spawnInterval -= 0.5;
-        }
-        if (game.gameSpeed < 5) {
-            game.gameSpeed += 0.02;
-        }
-    }
-
     // Update and draw enemies
     for (let i = enemies.length - 1; i >= 0; i--) {
         const enemy = enemies[i];
-        enemy.speed = game.gameSpeed;
         enemy.update();
         enemy.draw();
 
@@ -639,7 +952,17 @@ function gameLoop() {
 document.addEventListener('keydown', (e) => {
     if (!game.running) return;
 
-    if (e.code === 'Space') {
+    if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
+        e.preventDefault();
+        keys.left = true;
+    }
+
+    if (e.code === 'ArrowRight' || e.code === 'KeyD') {
+        e.preventDefault();
+        keys.right = true;
+    }
+
+    if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
         e.preventDefault();
         if (!keys.space) {
             keys.space = true;
@@ -665,7 +988,15 @@ document.addEventListener('keydown', (e) => {
 });
 
 document.addEventListener('keyup', (e) => {
-    if (e.code === 'Space') {
+    if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
+        keys.left = false;
+    }
+
+    if (e.code === 'ArrowRight' || e.code === 'KeyD') {
+        keys.right = false;
+    }
+
+    if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
         keys.space = false;
     }
 
@@ -683,7 +1014,9 @@ document.addEventListener('keyup', (e) => {
 let touchButtons = {
     jump: null,
     charge: null,
-    shoot: null
+    shoot: null,
+    left: null,
+    right: null
 };
 
 // Helper function to handle touch button press
@@ -697,12 +1030,12 @@ function setupTouchButton(buttonId, onPress, onRelease) {
     button.addEventListener('touchstart', (e) => {
         e.preventDefault();
         if (game.running) onPress();
-    });
+    }, { passive: false });
 
     button.addEventListener('touchend', (e) => {
         e.preventDefault();
         if (game.running && onRelease) onRelease();
-    });
+    }, { passive: false });
 
     // Mouse events for testing on desktop
     button.addEventListener('mousedown', (e) => {
@@ -719,6 +1052,20 @@ function setupTouchButton(buttonId, onPress, onRelease) {
 // Setup touch controls - function to initialize buttons
 function initializeTouchControls() {
     console.log('Initializing touch controls...');
+
+    setupTouchButton('leftBtn', () => {
+        console.log('Left button pressed');
+        keys.left = true;
+    }, () => {
+        keys.left = false;
+    });
+
+    setupTouchButton('rightBtn', () => {
+        console.log('Right button pressed');
+        keys.right = true;
+    }, () => {
+        keys.right = false;
+    });
 
     setupTouchButton('jumpBtn', () => {
         console.log('Jump button pressed');
@@ -775,6 +1122,10 @@ function initializeGame() {
     document.getElementById('highScore').textContent = game.highScore;
     updateScore();
     updateLives();
+    updatePepperonis();
+
+    // Generate level
+    generateLevel();
 
     // Start game
     game.running = true;

@@ -152,12 +152,18 @@ body {
 /* Mobile Touch Controls */
 .mobile-controls {
     display: none;
-    justify-content: space-around;
+    flex-direction: column;
     gap: 10px;
     margin-top: 15px;
     padding: 15px;
     background: #f8f9fa;
     border-radius: 10px;
+}
+
+.control-row {
+    display: flex;
+    justify-content: space-around;
+    gap: 10px;
 }
 
 .control-btn {
@@ -172,20 +178,33 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 5px;
     touch-action: manipulation;
     user-select: none;
     -webkit-user-select: none;
     -webkit-tap-highlight-color: transparent;
+    min-height: 60px;
 }
 
 .control-btn:active {
     transform: scale(0.95);
 }
 
+.move-btn {
+    background: #2196F3;
+    color: white;
+    flex: 0 0 30%;
+}
+
+.move-btn:active {
+    background: #1976D2;
+}
+
 .jump-btn {
     background: #4CAF50;
     color: white;
+    flex: 0 0 35%;
 }
 
 .jump-btn:active {
@@ -211,11 +230,12 @@ body {
 }
 
 .btn-label {
-    font-size: 0.9em;
+    font-size: 0.85em;
+    font-weight: bold;
 }
 
 .btn-icon {
-    font-size: 1.5em;
+    font-size: 1.8em;
 }
 
 /* Show mobile controls on touch devices and small screens */
