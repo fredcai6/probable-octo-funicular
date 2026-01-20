@@ -149,18 +149,141 @@ body {
     text-align: center;
 }
 
+/* Mobile Touch Controls */
+.mobile-controls {
+    display: none;
+    justify-content: space-around;
+    gap: 10px;
+    margin-top: 15px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+
+.control-btn {
+    flex: 1;
+    padding: 20px 10px;
+    border: 3px solid #333;
+    border-radius: 15px;
+    font-size: 1em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.control-btn:active {
+    transform: scale(0.95);
+}
+
+.jump-btn {
+    background: #4CAF50;
+    color: white;
+}
+
+.jump-btn:active {
+    background: #45a049;
+}
+
+.charge-btn {
+    background: #FF9800;
+    color: white;
+}
+
+.charge-btn:active {
+    background: #e68900;
+}
+
+.shoot-btn {
+    background: #f44336;
+    color: white;
+}
+
+.shoot-btn:active {
+    background: #da190b;
+}
+
+.btn-label {
+    font-size: 0.9em;
+}
+
+.btn-icon {
+    font-size: 1.5em;
+}
+
+/* Show mobile controls on touch devices and small screens */
+@media (max-width: 768px), (hover: none) {
+    .mobile-controls {
+        display: flex;
+    }
+
+    .controls-info {
+        display: none;
+    }
+
+    .header h1 {
+        font-size: 1.8em;
+    }
+
+    .stats {
+        gap: 15px;
+        font-size: 1em;
+    }
+
+    .enemy-info {
+        margin-top: 10px;
+        padding: 10px;
+    }
+
+    .enemy-info h3 {
+        font-size: 1em;
+    }
+
+    .guide-item {
+        font-size: 0.8em;
+        padding: 6px;
+    }
+
+    body {
+        padding: 10px;
+    }
+
+    .game-container {
+        padding: 15px;
+    }
+}
+
 @media (max-width: 600px) {
     .enemy-guide {
         grid-template-columns: 1fr;
     }
 
     .stats {
-        flex-direction: column;
+        flex-direction: row;
+        flex-wrap: wrap;
         gap: 10px;
     }
 
-    .controls-info {
-        flex-direction: column;
-        gap: 5px;
+    .header h1 {
+        font-size: 1.5em;
+    }
+
+    .game-over h2 {
+        font-size: 2em;
+    }
+
+    .game-over p {
+        font-size: 1.2em;
+    }
+
+    .game-over {
+        padding: 30px 20px;
     }
 }

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Pizza Runner - The Ultimate Pizza Adventure!</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -24,6 +24,22 @@
         </div>
 
         <canvas id="gameCanvas" width="800" height="400"></canvas>
+
+        <!-- Mobile Touch Controls -->
+        <div class="mobile-controls">
+            <button id="jumpBtn" class="control-btn jump-btn">
+                <span class="btn-label">JUMP</span>
+                <span class="btn-icon">⬆️</span>
+            </button>
+            <button id="chargeBtn" class="control-btn charge-btn">
+                <span class="btn-label">CHARGE</span>
+                <span class="btn-icon">⚡</span>
+            </button>
+            <button id="shootBtn" class="control-btn shoot-btn">
+                <span class="btn-label">SHOOT</span>
+                <span class="btn-icon">🍕</span>
+            </button>
+        </div>
 
         <div id="gameOver" class="game-over hidden">
             <h2>Game Over!</h2>
