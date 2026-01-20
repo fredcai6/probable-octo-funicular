@@ -28,13 +28,13 @@ const keys = {
 class Pizza {
     constructor() {
         this.x = 300;
-        this.y = canvas.height - 120;
+        this.y = canvas.height - 180;
         this.width = 40;
         this.height = 40;
         this.velocityX = 0;
         this.velocityY = 0;
         this.gravity = 0.6;
-        this.jumpPower = -13;
+        this.jumpPower = -15;
         this.moveSpeed = 5;
         this.grounded = false;
         this.charging = false;
@@ -103,7 +103,7 @@ class Pizza {
         this.grounded = false;
 
         // Ground collision
-        const groundY = canvas.height - 80;
+        const groundY = canvas.height - 140;
         if (this.y >= groundY) {
             this.y = groundY;
             this.velocityY = 0;
@@ -366,8 +366,9 @@ class Enemy {
     update() {
         this.x += this.speed * this.direction;
 
-        // Remove if too far off screen
-        if (this.x < game.cameraX - 200 || this.x > game.cameraX + canvas.width + 200) {
+        // Remove if too far behind camera (left side only)
+        // Keep enemies ahead of camera so they're there when player advances
+        if (this.x < game.cameraX - 200) {
             this.active = false;
         }
 
@@ -399,7 +400,7 @@ class Enemy {
 // Turtle Enemy (defeated by charging)
 class Turtle extends Enemy {
     constructor(x) {
-        const y = canvas.height - 75; // Ground level
+        const y = canvas.height - 175; // Ground level
         super('turtle', x, y);
         this.color = '#228B22';
     }
@@ -451,7 +452,7 @@ class Turtle extends Enemy {
 class Teenager extends Enemy {
     constructor(x, y = null) {
         if (y === null) {
-            y = canvas.height - 75; // Default to ground
+            y = canvas.height - 175; // Default to ground
         }
         super('teenager', x, y);
         this.color = '#FF69B4';
@@ -512,7 +513,7 @@ class Teenager extends Enemy {
 class Mutant extends Enemy {
     constructor(x, y = null) {
         if (y === null) {
-            y = canvas.height - 120;
+            y = canvas.height - 200; // Slightly above ground
         }
         super('mutant', x, y);
         this.color = '#9370DB';
@@ -533,7 +534,7 @@ class Mutant extends Enemy {
 
         // Keep within bounds
         const minY = 50;
-        const maxY = canvas.height - 80;
+        const maxY = canvas.height - 140;
         this.y = Math.max(minY, Math.min(maxY, this.y));
 
         // Patrol
@@ -703,53 +704,109 @@ const projectiles = [];
 const enemyProjectiles = [];
 const powerUps = [];
 
+// Level System
+const levels = {
+    1: {
+        name: "Pizza Delivery Begins",
+        platformCount: 15,
+        platformSpacing: [250, 300],
+        enemyDensity: 0.5, // Multiplier for enemy spawning
+        powerUpDensity: 0.35,
+        safeZone: 800,
+        worldWidth: 5000
+    },
+    2: {
+        name: "The Kitchen Gauntlet",
+        platformCount: 20,
+        platformSpacing: [200, 280],
+        enemyDensity: 0.8,
+        powerUpDensity: 0.3,
+        safeZone: 600,
+        worldWidth: 6000
+    },
+    3: {
+        name: "Ninja Territory",
+        platformCount: 25,
+        platformSpacing: [180, 250],
+        enemyDensity: 1.0,
+        powerUpDensity: 0.25,
+        safeZone: 400,
+        worldWidth: 7000
+    }
+};
+
+let currentLevel = 1;
+
+// Get current level configuration
+function getCurrentLevelConfig() {
+    return levels[currentLevel] || levels[1];
+}
+
+// Load next level
+function loadNextLevel() {
+    currentLevel++;
+    if (!levels[currentLevel]) {
+        // No more levels, loop back or show victory
+        currentLevel = 1;
+    }
+    generateLevel();
+}
+
 // Generate level
 function generateLevel() {
+    const levelConfig = getCurrentLevelConfig();
     platforms.length = 0;
     enemies.length = 0;
     powerUps.length = 0;
 
-    // Create platforms - start after player has some space
-    let x = 800;
-    for (let i = 0; i < 15; i++) {
+    // Update world width based on level
+    game.worldWidth = levelConfig.worldWidth;
+
+    // Create platforms - start after safe zone
+    let x = levelConfig.safeZone;
+    for (let i = 0; i < levelConfig.platformCount; i++) {
         const y = Math.random() * 180 + 120;
         const width = Math.random() * 150 + 120;
         platforms.push(new Platform(x, y, width));
 
-        // Spawn enemies on platforms - lower chances, only after first few platforms
+        // Spawn enemies on platforms - scaled by difficulty
         if (i > 2) {
-            if (Math.random() < 0.25) {
+            if (Math.random() < 0.25 * levelConfig.enemyDensity) {
                 // Ninja on platform
                 enemies.push(new Ninja(x + width / 2, y - 35));
             }
 
-            if (Math.random() < 0.15) {
+            if (Math.random() < 0.15 * levelConfig.enemyDensity) {
                 // Teenager on platform
                 enemies.push(new Teenager(x + width / 2, y - 35));
             }
 
-            if (Math.random() < 0.1) {
+            if (Math.random() < 0.1 * levelConfig.enemyDensity) {
                 // Mutant near platform
                 enemies.push(new Mutant(x + width / 2, y - 60));
             }
         }
 
         // Power-ups on platforms
-        if (Math.random() < 0.35) {
+        if (Math.random() < levelConfig.powerUpDensity) {
             powerUps.push(new PowerUp(x + width / 2 - 12, y - 40, 'pepperoni'));
         }
 
-        x += Math.random() * 300 + 250;
+        const minSpacing = levelConfig.platformSpacing[0];
+        const maxSpacing = levelConfig.platformSpacing[1];
+        x += Math.random() * (maxSpacing - minSpacing) + minSpacing;
     }
 
     // Ground enemies - spaced out, starting after initial safe zone
-    // Just 2 enemies in first section (600-1200px)
-    enemies.push(new Turtle(900));
-    enemies.push(new Teenager(1100));
+    // First 2 enemies just past safe zone
+    const firstEnemyX = levelConfig.safeZone + 100;
+    enemies.push(new Turtle(firstEnemyX));
+    enemies.push(new Teenager(firstEnemyX + 200));
 
-    // Then gradually add more enemies in sections
-    for (let i = 0; i < 10; i++) {
-        const sectionStart = 1500 + (i * 350);
+    // Then gradually add more enemies in sections scaled by density
+    const groundEnemyCount = Math.floor(10 * levelConfig.enemyDensity);
+    for (let i = 0; i < groundEnemyCount; i++) {
+        const sectionStart = levelConfig.safeZone + 600 + (i * 350);
         const x = sectionStart + Math.random() * 300;
         const rand = Math.random();
 
@@ -763,10 +820,14 @@ function generateLevel() {
     }
 
     // Ground power-ups - spaced throughout
-    for (let i = 0; i < 12; i++) {
-        const x = 700 + (i * 350) + Math.random() * 200;
-        powerUps.push(new PowerUp(x, canvas.height - 120, 'pepperoni'));
+    const powerUpCount = Math.floor(12 * levelConfig.powerUpDensity);
+    for (let i = 0; i < powerUpCount; i++) {
+        const x = levelConfig.safeZone - 100 + (i * 400) + Math.random() * 200;
+        powerUps.push(new PowerUp(x, canvas.height - 180, 'pepperoni'));
     }
+
+    console.log(`Level ${currentLevel} generated: ${levelConfig.name}`);
+    console.log(`Platforms: ${platforms.length}, Enemies: ${enemies.length}, Power-ups: ${powerUps.length}`);
 }
 
 // Draw Ground
@@ -775,11 +836,11 @@ function drawGround() {
     ctx.translate(-game.cameraX, 0);
 
     ctx.fillStyle = '#8B4513';
-    ctx.fillRect(0, canvas.height - 40, game.worldWidth, 40);
+    ctx.fillRect(0, canvas.height - 100, game.worldWidth, 100);
 
     // Grass
     ctx.fillStyle = '#228B22';
-    ctx.fillRect(0, canvas.height - 45, game.worldWidth, 5);
+    ctx.fillRect(0, canvas.height - 105, game.worldWidth, 5);
 
     ctx.restore();
 }
@@ -791,7 +852,7 @@ function drawBackground() {
     gradient.addColorStop(0, '#87CEEB');
     gradient.addColorStop(1, '#E0F6FF');
     ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height - 40);
+    ctx.fillRect(0, 0, canvas.width, canvas.height - 100);
 
     // Clouds (parallax)
     ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
@@ -847,7 +908,7 @@ function resetGame() {
     powerUps.length = 0;
 
     player.x = 300;
-    player.y = canvas.height - 120;
+    player.y = canvas.height - 180;
     player.velocityX = 0;
     player.velocityY = 0;
     player.grounded = false;
