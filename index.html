@@ -14,11 +14,12 @@
                 <div class="stat-item">Score: <span id="score">0</span></div>
                 <div class="stat-item">High Score: <span id="highScore">0</span></div>
                 <div class="stat-item">Lives: <span id="lives">3</span></div>
+                <div class="stat-item">Pepperonis: <span id="pepperonis">10</span></div>
             </div>
         </div>
 
         <div class="controls-info">
-            <span><strong>SPACE</strong>: Jump</span>
+            <span><strong>ARROWS/WASD</strong>: Move & Jump</span>
             <span><strong>SHIFT</strong>: Charge</span>
             <span><strong>F</strong>: Shoot Pepperoni</span>
         </div>
@@ -27,18 +28,25 @@
 
         <!-- Mobile Touch Controls -->
         <div class="mobile-controls">
-            <button id="jumpBtn" class="control-btn jump-btn">
-                <span class="btn-label">JUMP</span>
-                <span class="btn-icon">⬆️</span>
-            </button>
-            <button id="chargeBtn" class="control-btn charge-btn">
-                <span class="btn-label">CHARGE</span>
-                <span class="btn-icon">⚡</span>
-            </button>
-            <button id="shootBtn" class="control-btn shoot-btn">
-                <span class="btn-label">SHOOT</span>
-                <span class="btn-icon">🍕</span>
-            </button>
+            <div class="control-row">
+                <button id="leftBtn" class="control-btn move-btn">
+                    <span class="btn-icon">⬅️</span>
+                </button>
+                <button id="rightBtn" class="control-btn move-btn">
+                    <span class="btn-icon">➡️</span>
+                </button>
+                <button id="jumpBtn" class="control-btn jump-btn">
+                    <span class="btn-icon">⬆️</span>
+                </button>
+            </div>
+            <div class="control-row">
+                <button id="chargeBtn" class="control-btn charge-btn">
+                    <span class="btn-label">CHARGE</span>
+                </button>
+                <button id="shootBtn" class="control-btn shoot-btn">
+                    <span class="btn-label">SHOOT</span>
+                </button>
+            </div>
         </div>
 
         <div id="gameOver" class="game-over hidden">
