@@ -716,9 +716,12 @@ function setupTouchButton(buttonId, onPress, onRelease) {
     });
 }
 
-// Setup touch controls after DOM loads
-window.addEventListener('DOMContentLoaded', () => {
+// Setup touch controls - function to initialize buttons
+function initializeTouchControls() {
+    console.log('Initializing touch controls...');
+
     setupTouchButton('jumpBtn', () => {
+        console.log('Jump button pressed');
         if (!keys.space) {
             keys.space = true;
             player.jump();
@@ -728,6 +731,7 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     setupTouchButton('chargeBtn', () => {
+        console.log('Charge button pressed');
         if (!keys.shift) {
             keys.shift = true;
             player.charge();
@@ -738,6 +742,7 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     setupTouchButton('shootBtn', () => {
+        console.log('Shoot button pressed');
         if (!keys.f) {
             keys.f = true;
             player.shoot();
@@ -745,20 +750,43 @@ window.addEventListener('DOMContentLoaded', () => {
     }, () => {
         keys.f = false;
     });
-});
 
-// Restart Button
-document.getElementById('restartBtn').addEventListener('click', () => {
-    resetGame();
+    console.log('Touch controls initialized');
+}
+
+// Initialize game
+function initializeGame() {
+    console.log('Initializing game...');
+
+    // Setup restart button
+    const restartBtn = document.getElementById('restartBtn');
+    if (restartBtn) {
+        restartBtn.addEventListener('click', () => {
+            resetGame();
+            game.running = true;
+            gameLoop();
+        });
+    }
+
+    // Setup touch controls
+    initializeTouchControls();
+
+    // Initialize UI
+    document.getElementById('highScore').textContent = game.highScore;
+    updateScore();
+    updateLives();
+
+    // Start game
     game.running = true;
     gameLoop();
-});
 
-// Initialize
-document.getElementById('highScore').textContent = game.highScore;
-updateScore();
-updateLives();
+    console.log('Game started!');
+}
 
-// Start game immediately
-game.running = true;
-gameLoop();
+// Wait for DOM to be ready, then initialize
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeGame);
+} else {
+    // DOM is already loaded
+    initializeGame();
+}
