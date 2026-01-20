@@ -27,7 +27,7 @@ const keys = {
 // Player (Pizza) Class
 class Pizza {
     constructor() {
-        this.x = 100;
+        this.x = 300;
         this.y = canvas.height - 120;
         this.width = 40;
         this.height = 40;
@@ -399,7 +399,7 @@ class Enemy {
 // Turtle Enemy (defeated by charging)
 class Turtle extends Enemy {
     constructor(x) {
-        const y = canvas.height - 115; // Ground level
+        const y = canvas.height - 75; // Ground level
         super('turtle', x, y);
         this.color = '#228B22';
     }
@@ -451,7 +451,7 @@ class Turtle extends Enemy {
 class Teenager extends Enemy {
     constructor(x, y = null) {
         if (y === null) {
-            y = canvas.height - 115; // Default to ground
+            y = canvas.height - 75; // Default to ground
         }
         super('teenager', x, y);
         this.color = '#FF69B4';
@@ -709,54 +709,62 @@ function generateLevel() {
     enemies.length = 0;
     powerUps.length = 0;
 
-    // Create platforms
-    let x = 400;
-    for (let i = 0; i < 20; i++) {
-        const y = Math.random() * 200 + 100;
-        const width = Math.random() * 150 + 100;
+    // Create platforms - start after player has some space
+    let x = 800;
+    for (let i = 0; i < 15; i++) {
+        const y = Math.random() * 180 + 120;
+        const width = Math.random() * 150 + 120;
         platforms.push(new Platform(x, y, width));
 
-        // Spawn enemies on platforms
-        if (Math.random() < 0.5) {
-            // Ninja on platform
-            enemies.push(new Ninja(x + width / 2, y - 35));
-        }
+        // Spawn enemies on platforms - lower chances, only after first few platforms
+        if (i > 2) {
+            if (Math.random() < 0.25) {
+                // Ninja on platform
+                enemies.push(new Ninja(x + width / 2, y - 35));
+            }
 
-        if (Math.random() < 0.4) {
-            // Teenager on platform
-            enemies.push(new Teenager(x + width / 2, y - 35));
-        }
+            if (Math.random() < 0.15) {
+                // Teenager on platform
+                enemies.push(new Teenager(x + width / 2, y - 35));
+            }
 
-        if (Math.random() < 0.3) {
-            // Mutant near platform
-            enemies.push(new Mutant(x + width / 2, y - 60));
+            if (Math.random() < 0.1) {
+                // Mutant near platform
+                enemies.push(new Mutant(x + width / 2, y - 60));
+            }
         }
 
         // Power-ups on platforms
-        if (Math.random() < 0.4) {
+        if (Math.random() < 0.35) {
             powerUps.push(new PowerUp(x + width / 2 - 12, y - 40, 'pepperoni'));
         }
 
-        x += Math.random() * 250 + 200;
+        x += Math.random() * 300 + 250;
     }
 
-    // Ground enemies (turtles and some teenagers/mutants)
-    for (let i = 0; i < 30; i++) {
-        const x = Math.random() * game.worldWidth;
+    // Ground enemies - spaced out, starting after initial safe zone
+    // Just 2 enemies in first section (600-1200px)
+    enemies.push(new Turtle(900));
+    enemies.push(new Teenager(1100));
+
+    // Then gradually add more enemies in sections
+    for (let i = 0; i < 10; i++) {
+        const sectionStart = 1500 + (i * 350);
+        const x = sectionStart + Math.random() * 300;
         const rand = Math.random();
 
-        if (rand < 0.4) {
+        if (rand < 0.5) {
             enemies.push(new Turtle(x));
-        } else if (rand < 0.7) {
+        } else if (rand < 0.8) {
             enemies.push(new Teenager(x));
         } else {
             enemies.push(new Mutant(x));
         }
     }
 
-    // Ground power-ups
-    for (let i = 0; i < 15; i++) {
-        const x = Math.random() * game.worldWidth;
+    // Ground power-ups - spaced throughout
+    for (let i = 0; i < 12; i++) {
+        const x = 700 + (i * 350) + Math.random() * 200;
         powerUps.push(new PowerUp(x, canvas.height - 120, 'pepperoni'));
     }
 }
@@ -838,7 +846,7 @@ function resetGame() {
     enemyProjectiles.length = 0;
     powerUps.length = 0;
 
-    player.x = 100;
+    player.x = 300;
     player.y = canvas.height - 120;
     player.velocityX = 0;
     player.velocityY = 0;
